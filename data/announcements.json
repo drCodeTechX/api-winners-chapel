@@ -1,0 +1,24 @@
+[
+  {
+    "id": "announcement-1766038506111",
+    "title": "Chistmas Caroline",
+    "date": "2025-12-25",
+    "description": "Hey hello ",
+    "icon": "Bell",
+    "badge": "Important",
+    "badgeVariant": "secondary",
+    "createdAt": "2025-12-18T06:15:06.111Z",
+    "updatedAt": "2025-12-18T06:37:32.144Z"
+  },
+  {
+    "id": "announcement-4b63e4f2-9513-4838-aa4e-527a0a9b9078",
+    "title": "Test Announcement",
+    "date": "2025-12-20",
+    "description": "This is a test",
+    "icon": "Music",
+    "badge": "New",
+    "badgeVariant": "default",
+    "createdAt": "2025-12-18T08:11:41.694Z",
+    "updatedAt": "2025-12-18T10:48:47.937Z"
+  }
+]
