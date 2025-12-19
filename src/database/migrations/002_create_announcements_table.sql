@@ -8,11 +8,11 @@ CREATE TABLE IF NOT EXISTS announcements (
   description TEXT NOT NULL,
   icon VARCHAR(50) NOT NULL DEFAULT 'Bell',
   badge VARCHAR(100) NOT NULL,
-  badge_variant ENUM('default', 'secondary', 'outline') NOT NULL DEFAULT 'default',
+  badge_variant VARCHAR(20) NOT NULL DEFAULT 'default' CHECK (badge_variant IN ('default', 'secondary', 'outline')),
   is_active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  INDEX idx_date (date DESC),
-  INDEX idx_is_active (is_active)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
+CREATE INDEX IF NOT EXISTS idx_announcements_date ON announcements(date DESC);
+CREATE INDEX IF NOT EXISTS idx_announcements_is_active ON announcements(is_active);

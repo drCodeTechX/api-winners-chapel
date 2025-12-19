@@ -12,6 +12,7 @@ const announcementsRoutes = require('./routes/announcements');
 const eventsRoutes = require('./routes/events');
 const postersRoutes = require('./routes/posters');
 const uploadRoutes = require('./routes/upload');
+const usersRoutes = require('./routes/users');
 
 const app = express();
 const PORT = process.env.PORT || 8010;
@@ -40,6 +41,7 @@ app.use('/api/announcements', announcementsRoutes);
 app.use('/api/events', eventsRoutes);
 app.use('/api/posters', postersRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/users', usersRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
