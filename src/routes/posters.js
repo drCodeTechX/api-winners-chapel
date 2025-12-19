@@ -9,10 +9,12 @@ const router = express.Router();
 // GET /api/posters - Get all posters
 router.get('/', async (req, res) => {
   try {
+    console.log('[POSTERS API] GET /api/posters');
     const posters = await db.getPosters();
+    console.log(`[POSTERS API] Found ${posters.length} total posters`);
     res.json(posters);
   } catch (error) {
-    console.error('Get posters error:', error);
+    console.error('[POSTERS API] Get posters error:', error);
     res.status(500).json({ error: 'Could not load posters. Please try again.' });
   }
 });
@@ -37,16 +39,25 @@ router.get('/theme/latest', async (req, res) => {
 router.get('/category/:category', async (req, res) => {
   try {
     const { category } = req.params;
+    console.log(`[POSTERS API] GET /api/posters/category/${category}`);
+
     const validCategories = ['service', 'event', 'theme'];
-    
+
     if (!validCategories.includes(category)) {
+      console.log(`[POSTERS API] Invalid category requested: ${category}`);
       return res.status(400).json({ error: 'Invalid category. Use: service, event, or theme' });
     }
 
     const posters = await db.getPostersByCategory(category);
+    console.log(`[POSTERS API] Found ${posters.length} posters for category '${category}'`);
+
+    if (posters.length > 0) {
+      console.log('[POSTERS API] Sample poster data:', JSON.stringify(posters[0], null, 2));
+    }
+
     res.json(posters);
   } catch (error) {
-    console.error('Get posters by category error:', error);
+    console.error('[POSTERS API] Get posters by category error:', error);
     res.status(500).json({ error: 'Could not load posters. Please try again.' });
   }
 });
