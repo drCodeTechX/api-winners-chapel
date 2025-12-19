@@ -1,10 +1,30 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
+const path = require('path');
+const fs = require('fs');
 const { validate, eventSchema } = require('../lib/validation');
 const { authMiddleware } = require('../middleware/auth');
 const db = require('../lib/db');
 
 const router = express.Router();
+
+// Helper function to delete old image file
+function deleteImageFile(imageUrl) {
+  if (!imageUrl || !imageUrl.startsWith('/uploads/')) {
+    return;
+  }
+  
+  try {
+    const filePath = path.join(__dirname, '..', '..', 'public', imageUrl);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      console.log(`Deleted old image: ${filePath}`);
+    }
+  } catch (error) {
+    console.error(`Error deleting image file ${imageUrl}:`, error);
+    // Don't throw - image deletion failure shouldn't break the update
+  }
+}
 
 // GET /api/events - Get all events
 router.get('/', async (req, res) => {
@@ -74,6 +94,17 @@ router.put('/:id', authMiddleware, async (req, res) => {
       });
     }
 
+    // Get existing event to check for old image
+    const existing = await db.getEventById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    // If image is being updated, delete the old one
+    if (validation.data.imageUrl && existing.imageUrl && validation.data.imageUrl !== existing.imageUrl) {
+      deleteImageFile(existing.imageUrl);
+    }
+
     const updated = await db.updateEvent(req.params.id, validation.data);
 
     if (!updated) {
@@ -104,5 +135,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 });
 
 module.exports = router;
+
+
 
 
