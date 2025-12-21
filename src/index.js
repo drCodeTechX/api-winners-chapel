@@ -46,8 +46,41 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/users', usersRoutes);
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/api/health', async (req, res) => {
+  const health = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    server: {
+      status: 'up',
+      uptime: process.uptime(),
+      environment: process.env.NODE_ENV || 'development'
+    },
+    database: {
+      status: 'unknown'
+    }
+  };
+
+  // Test database connection
+  try {
+    const { pool } = require('./database/connection');
+    const client = await pool.connect();
+    await client.query('SELECT NOW()');
+    client.release();
+
+    health.database = {
+      status: 'connected',
+      message: 'Database connection successful'
+    };
+  } catch (error) {
+    health.status = 'degraded';
+    health.database = {
+      status: 'disconnected',
+      message: error.message
+    };
+  }
+
+  const statusCode = health.status === 'ok' ? 200 : 503;
+  res.status(statusCode).json(health);
 });
 
 // Error handling middleware
