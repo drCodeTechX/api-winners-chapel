@@ -15,80 +15,6 @@ function toCamelCaseArray(rows) {
   return rows.map(toCamelCase);
 }
 
-// ==================== POSTERS ====================
-
-async function getPosters() {
-  const result = await pool.query(
-    'SELECT * FROM posters WHERE is_active = TRUE ORDER BY display_order ASC, created_at DESC'
-  );
-  return toCamelCaseArray(result.rows);
-}
-
-async function getPosterById(id) {
-  const result = await pool.query('SELECT * FROM posters WHERE id = $1', [id]);
-  return toCamelCase(result.rows[0]);
-}
-
-async function getPostersByCategory(category) {
-  const result = await pool.query(
-    'SELECT * FROM posters WHERE category = $1 AND is_active = TRUE ORDER BY display_order ASC, created_at DESC',
-    [category]
-  );
-  return toCamelCaseArray(result.rows);
-}
-
-async function getLatestThemePoster() {
-  const result = await pool.query(
-    `SELECT * FROM posters 
-     WHERE category = 'theme' AND is_active = TRUE 
-     ORDER BY created_at DESC 
-     LIMIT 1`
-  );
-  return toCamelCase(result.rows[0]);
-}
-
-async function createPoster(poster) {
-  const { id, title, category, imageUrl, description } = poster;
-  
-  await pool.query(
-    `INSERT INTO posters (id, title, category, image_url, description, created_at, updated_at) 
-     VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
-    [id, title, category, imageUrl, description || null]
-  );
-  
-  return getPosterById(id);
-}
-
-async function updatePoster(id, updates) {
-  const existing = await getPosterById(id);
-  if (!existing) return null;
-  
-  const { title, category, imageUrl, description, isActive, displayOrder } = updates;
-  
-  await pool.query(
-    `UPDATE posters 
-     SET title = COALESCE($1, title),
-         category = COALESCE($2, category),
-         image_url = COALESCE($3, image_url),
-         description = COALESCE($4, description),
-         is_active = COALESCE($5, is_active),
-         display_order = COALESCE($6, display_order),
-         updated_at = NOW()
-     WHERE id = $7`,
-    [title, category, imageUrl, description, isActive, displayOrder, id]
-  );
-  
-  return getPosterById(id);
-}
-
-async function deletePoster(id) {
-  const existing = await getPosterById(id);
-  if (!existing) return false;
-  
-  await pool.query('DELETE FROM posters WHERE id = $1', [id]);
-  return true;
-}
-
 // ==================== ANNOUNCEMENTS ====================
 
 async function getAnnouncements() {
@@ -149,15 +75,36 @@ async function deleteAnnouncement(id) {
 // ==================== EVENTS ====================
 
 async function getEvents() {
+  console.log('🔍 [DB] getEvents() - Fetching all active events from database');
   const result = await pool.query(
     'SELECT * FROM events WHERE is_active = TRUE ORDER BY date ASC'
   );
-  return toCamelCaseArray(result.rows);
+  const events = toCamelCaseArray(result.rows);
+  console.log('✅ [DB] getEvents() - Retrieved', events.length, 'events');
+  events.forEach((event, idx) => {
+    console.log(`📊 [DB] Event ${idx + 1}/${events.length}:`, {
+      id: event.id,
+      title: event.title,
+      imageUrl: event.imageUrl,
+      imageUrlLength: event.imageUrl?.length,
+      imageUrlPreview: event.imageUrl?.substring(0, 50)
+    });
+  });
+  return events;
 }
 
 async function getEventById(id) {
+  console.log('🔍 [DB] getEventById() - Fetching event with id:', id);
   const result = await pool.query('SELECT * FROM events WHERE id = $1', [id]);
-  return toCamelCase(result.rows[0]);
+  const event = toCamelCase(result.rows[0]);
+  console.log('✅ [DB] getEventById() - Retrieved event:', {
+    id: event?.id,
+    title: event?.title,
+    imageUrl: event?.imageUrl,
+    imageUrlLength: event?.imageUrl?.length,
+    imageUrlPreview: event?.imageUrl?.substring(0, 50)
+  });
+  return event;
 }
 
 async function getUpcomingEvents(limit = 4) {
@@ -173,24 +120,49 @@ async function getUpcomingEvents(limit = 4) {
 
 async function createEvent(event) {
   const { id, title, date, time, description, imageUrl } = event;
-  
+
+  console.log('➕ [DB] createEvent() - Creating event:', {
+    id,
+    title,
+    imageUrl,
+    imageUrlLength: imageUrl?.length,
+    imageUrlPreview: imageUrl?.substring(0, 50)
+  });
+
   await pool.query(
-    `INSERT INTO events (id, title, date, time, description, image_url, created_at, updated_at) 
+    `INSERT INTO events (id, title, date, time, description, image_url, created_at, updated_at)
      VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())`,
     [id, title, date, time, description, imageUrl]
   );
-  
+
+  console.log('✅ [DB] createEvent() - Event created, fetching full record');
   return getEventById(id);
 }
 
 async function updateEvent(id, updates) {
+  console.log('📝 [DB] updateEvent() - Updating event:', id);
+  console.log('📝 [DB] updateEvent() - Updates:', {
+    title: updates.title,
+    imageUrl: updates.imageUrl,
+    imageUrlLength: updates.imageUrl?.length,
+    imageUrlPreview: updates.imageUrl?.substring(0, 50)
+  });
+
   const existing = await getEventById(id);
-  if (!existing) return null;
-  
+  if (!existing) {
+    console.log('❌ [DB] updateEvent() - Event not found:', id);
+    return null;
+  }
+
+  console.log('📝 [DB] updateEvent() - Existing imageUrl:', {
+    imageUrl: existing.imageUrl,
+    imageUrlLength: existing.imageUrl?.length
+  });
+
   const { title, date, time, description, imageUrl, isActive } = updates;
-  
+
   await pool.query(
-    `UPDATE events 
+    `UPDATE events
      SET title = COALESCE($1, title),
          date = COALESCE($2, date),
          time = COALESCE($3, time),
@@ -201,7 +173,8 @@ async function updateEvent(id, updates) {
      WHERE id = $7`,
     [title, date, time, description, imageUrl, isActive, id]
   );
-  
+
+  console.log('✅ [DB] updateEvent() - Event updated, fetching updated record');
   return getEventById(id);
 }
 
@@ -210,6 +183,108 @@ async function deleteEvent(id) {
   if (!existing) return false;
   
   await pool.query('DELETE FROM events WHERE id = $1', [id]);
+  return true;
+}
+
+// ==================== SERVICES ====================
+
+async function getServices() {
+  console.log('🔍 [DB] getServices() - Fetching all services from database');
+  const result = await pool.query(
+    'SELECT * FROM services ORDER BY "order" ASC, created_at DESC'
+  );
+  const services = toCamelCaseArray(result.rows);
+  console.log('✅ [DB] getServices() - Retrieved', services.length, 'services');
+  services.forEach((service, idx) => {
+    console.log(`📊 [DB] Service ${idx + 1}/${services.length}:`, {
+      id: service.id,
+      title: service.title,
+      imageUrl: service.imageUrl,
+      imageUrlLength: service.imageUrl?.length,
+      imageUrlPreview: service.imageUrl?.substring(0, 50)
+    });
+  });
+  return services;
+}
+
+async function getServiceById(id) {
+  console.log('🔍 [DB] getServiceById() - Fetching service with id:', id);
+  const result = await pool.query('SELECT * FROM services WHERE id = $1', [id]);
+  const service = toCamelCase(result.rows[0]);
+  console.log('✅ [DB] getServiceById() - Retrieved service:', {
+    id: service?.id,
+    title: service?.title,
+    imageUrl: service?.imageUrl,
+    imageUrlLength: service?.imageUrl?.length,
+    imageUrlPreview: service?.imageUrl?.substring(0, 50)
+  });
+  return service;
+}
+
+async function createService(service) {
+  const { id, title, subtitle, description, imageUrl, order } = service;
+
+  console.log('➕ [DB] createService() - Creating service:', {
+    id,
+    title,
+    imageUrl,
+    imageUrlLength: imageUrl?.length,
+    imageUrlPreview: imageUrl?.substring(0, 50)
+  });
+
+  await pool.query(
+    `INSERT INTO services (id, title, subtitle, description, image_url, "order", created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())`,
+    [id, title, subtitle, description, imageUrl, order]
+  );
+
+  console.log('✅ [DB] createService() - Service created, fetching full record');
+  return getServiceById(id);
+}
+
+async function updateService(id, updates) {
+  console.log('📝 [DB] updateService() - Updating service:', id);
+  console.log('📝 [DB] updateService() - Updates:', {
+    title: updates.title,
+    imageUrl: updates.imageUrl,
+    imageUrlLength: updates.imageUrl?.length,
+    imageUrlPreview: updates.imageUrl?.substring(0, 50)
+  });
+
+  const existing = await getServiceById(id);
+  if (!existing) {
+    console.log('❌ [DB] updateService() - Service not found:', id);
+    return null;
+  }
+
+  console.log('📝 [DB] updateService() - Existing imageUrl:', {
+    imageUrl: existing.imageUrl,
+    imageUrlLength: existing.imageUrl?.length
+  });
+
+  const { title, subtitle, description, imageUrl, order } = updates;
+
+  await pool.query(
+    `UPDATE services
+     SET title = COALESCE($1, title),
+         subtitle = COALESCE($2, subtitle),
+         description = COALESCE($3, description),
+         image_url = COALESCE($4, image_url),
+         "order" = COALESCE($5, "order"),
+         updated_at = NOW()
+     WHERE id = $6`,
+    [title, subtitle, description, imageUrl, order, id]
+  );
+
+  console.log('✅ [DB] updateService() - Service updated, fetching updated record');
+  return getServiceById(id);
+}
+
+async function deleteService(id) {
+  const existing = await getServiceById(id);
+  if (!existing) return false;
+
+  await pool.query('DELETE FROM services WHERE id = $1', [id]);
   return true;
 }
 
@@ -296,15 +371,125 @@ async function deleteUser(id) {
   return true;
 }
 
+// ==================== THEME ====================
+
+async function getThemes() {
+  console.log('🔍 [DB] getThemes() - Fetching all themes from database');
+  const result = await pool.query(
+    'SELECT * FROM theme ORDER BY created_at DESC'
+  );
+  const themes = toCamelCaseArray(result.rows);
+  console.log('✅ [DB] getThemes() - Retrieved', themes.length, 'themes');
+  themes.forEach((theme, idx) => {
+    console.log(`📊 [DB] Theme ${idx + 1}/${themes.length}:`, {
+      id: theme.id,
+      title: theme.title,
+      posterPath: theme.posterPath,
+      posterPathLength: theme.posterPath?.length,
+      posterPathPreview: theme.posterPath?.substring(0, 50)
+    });
+  });
+  return themes;
+}
+
+async function getThemeById(id) {
+  console.log('🔍 [DB] getThemeById() - Fetching theme with id:', id);
+  const result = await pool.query('SELECT * FROM theme WHERE id = $1', [id]);
+  const theme = toCamelCase(result.rows[0]);
+  console.log('✅ [DB] getThemeById() - Retrieved theme:', {
+    id: theme?.id,
+    title: theme?.title,
+    posterPath: theme?.posterPath,
+    posterPathLength: theme?.posterPath?.length,
+    posterPathPreview: theme?.posterPath?.substring(0, 50)
+  });
+  return theme;
+}
+
+async function getLatestTheme() {
+  console.log('🔍 [DB] getLatestTheme() - Fetching latest theme from database');
+  const result = await pool.query(
+    `SELECT * FROM theme
+     ORDER BY created_at DESC
+     LIMIT 1`
+  );
+  const theme = toCamelCase(result.rows[0]);
+  console.log('✅ [DB] getLatestTheme() - Retrieved latest theme:', {
+    id: theme?.id,
+    title: theme?.title,
+    posterPath: theme?.posterPath,
+    posterPathLength: theme?.posterPath?.length,
+    posterPathPreview: theme?.posterPath?.substring(0, 50)
+  });
+  return theme;
+}
+
+async function createTheme(theme) {
+  const { id, title, description, posterPath } = theme;
+
+  console.log('➕ [DB] createTheme() - Creating theme:', {
+    id,
+    title,
+    posterPath,
+    posterPathLength: posterPath?.length,
+    posterPathPreview: posterPath?.substring(0, 50)
+  });
+
+  await pool.query(
+    `INSERT INTO theme (id, title, description, poster_path, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, NOW(), NOW())`,
+    [id, title, description || null, posterPath]
+  );
+
+  console.log('✅ [DB] createTheme() - Theme created, fetching full record');
+  return getThemeById(id);
+}
+
+async function updateTheme(id, updates) {
+  console.log('📝 [DB] updateTheme() - Updating theme:', id);
+  console.log('📝 [DB] updateTheme() - Updates:', {
+    title: updates.title,
+    posterPath: updates.posterPath,
+    posterPathLength: updates.posterPath?.length,
+    posterPathPreview: updates.posterPath?.substring(0, 50)
+  });
+
+  const existing = await getThemeById(id);
+  if (!existing) {
+    console.log('❌ [DB] updateTheme() - Theme not found:', id);
+    return null;
+  }
+
+  console.log('📝 [DB] updateTheme() - Existing posterPath:', {
+    posterPath: existing.posterPath,
+    posterPathLength: existing.posterPath?.length
+  });
+
+  const { title, description, posterPath } = updates;
+
+  await pool.query(
+    `UPDATE theme
+     SET title = COALESCE($1, title),
+         description = COALESCE($2, description),
+         poster_path = COALESCE($3, poster_path),
+         updated_at = NOW()
+     WHERE id = $4`,
+    [title, description, posterPath, id]
+  );
+
+  console.log('✅ [DB] updateTheme() - Theme updated, fetching updated record');
+  return getThemeById(id);
+}
+
+async function deleteTheme(id) {
+  const existing = await getThemeById(id);
+  if (!existing) return false;
+  
+  await pool.query('DELETE FROM theme WHERE id = $1', [id]);
+  return true;
+}
+
 module.exports = {
-  // Posters
-  getPosters,
-  getPosterById,
-  getPostersByCategory,
-  getLatestThemePoster,
-  createPoster,
-  updatePoster,
-  deletePoster,
   // Announcements
   getAnnouncements,
   getAnnouncementById,
@@ -318,6 +503,12 @@ module.exports = {
   createEvent,
   updateEvent,
   deleteEvent,
+  // Services
+  getServices,
+  getServiceById,
+  createService,
+  updateService,
+  deleteService,
   // Users
   getUsers,
   getUserById,
@@ -326,5 +517,12 @@ module.exports = {
   updateUser,
   updateUserPassword,
   updateLastLogin,
-  deleteUser
+  deleteUser,
+  // Theme
+  getThemes,
+  getThemeById,
+  getLatestTheme,
+  createTheme,
+  updateTheme,
+  deleteTheme
 };

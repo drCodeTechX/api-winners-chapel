@@ -10,6 +10,11 @@ const pool = new Pool({
   user: process.env.DB_USER || 'postgres',
   password: dbPassword,
   database: process.env.DB_NAME || 'church_website',
+
+  ssl: {
+    rejectUnauthorized: false,
+  },
+
   max: 10,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,

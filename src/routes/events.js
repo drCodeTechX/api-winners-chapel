@@ -29,10 +29,20 @@ function deleteImageFile(imageUrl) {
 // GET /api/events - Get all events
 router.get('/', async (req, res) => {
   try {
+    console.log('🌐 [API ROUTE] GET /api/events - Fetching all events');
     const events = await db.getEvents();
+    console.log('✅ [API ROUTE] GET /api/events - Returning', events.length, 'events');
+    events.forEach((event, idx) => {
+      console.log(`📤 [API ROUTE] Sending event ${idx + 1}:`, {
+        id: event.id,
+        title: event.title,
+        imageUrl: event.imageUrl,
+        imageUrlLength: event.imageUrl?.length
+      });
+    });
     res.json(events);
   } catch (error) {
-    console.error('Get events error:', error);
+    console.error('❌ [API ROUTE] Get events error:', error);
     res.status(500).json({ error: 'Could not load events. Please try again.' });
   }
 });
@@ -40,15 +50,23 @@ router.get('/', async (req, res) => {
 // GET /api/events/:id - Get single event
 router.get('/:id', async (req, res) => {
   try {
+    console.log('🌐 [API ROUTE] GET /api/events/:id - Fetching event:', req.params.id);
     const event = await db.getEventById(req.params.id);
 
     if (!event) {
+      console.log('❌ [API ROUTE] Event not found:', req.params.id);
       return res.status(404).json({ error: 'Event not found' });
     }
 
+    console.log('✅ [API ROUTE] GET /api/events/:id - Returning event:', {
+      id: event.id,
+      title: event.title,
+      imageUrl: event.imageUrl,
+      imageUrlLength: event.imageUrl?.length
+    });
     res.json(event);
   } catch (error) {
-    console.error('Get event error:', error);
+    console.error('❌ [API ROUTE] Get event error:', error);
     res.status(500).json({ error: 'Could not load event. Please try again.' });
   }
 });

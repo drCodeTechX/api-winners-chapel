@@ -6,12 +6,13 @@ const loginSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
-// Poster validation
+// Poster validation - imageUrl is validated manually in the form
 const posterSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   category: z.enum(['service', 'event', 'theme']),
-  imageUrl: z.string().min(1, 'Image is required'),
+  imageUrl: z.string().optional(),
   description: z.string().optional(),
+  serviceTime: z.string().optional(), // Time info for service posters
 });
 
 // Announcement validation
@@ -31,6 +32,22 @@ const eventSchema = z.object({
   time: z.string().min(1, 'Time is required'),
   description: z.string().min(1, 'Description is required'),
   imageUrl: z.string().min(1, 'Image is required'),
+});
+
+// Service validation
+const serviceSchema = z.object({
+  title: z.string().min(1, 'Title is required'),
+  subtitle: z.string().min(1, 'Subtitle is required'),
+  description: z.string().min(1, 'Description is required'),
+  imageUrl: z.string().min(1, 'Image is required'),
+  order: z.number().int().min(0),
+});
+
+// Theme validation
+const themeSchema = z.object({
+  title: z.string().min(1, 'Title is required'),
+  description: z.string().optional(),
+  posterPath: z.string().min(1, 'Poster path is required'),
 });
 
 // Helper function to validate and return errors
@@ -53,6 +70,8 @@ module.exports = {
   posterSchema,
   announcementSchema,
   eventSchema,
+  serviceSchema,
+  themeSchema,
   validate
 };
 

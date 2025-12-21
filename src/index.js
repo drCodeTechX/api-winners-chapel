@@ -10,7 +10,8 @@ const { testConnection } = require('./database/connection');
 const authRoutes = require('./routes/auth');
 const announcementsRoutes = require('./routes/announcements');
 const eventsRoutes = require('./routes/events');
-const postersRoutes = require('./routes/posters');
+const servicesRoutes = require('./routes/services');
+const themeRoutes = require('./routes/theme');
 const uploadRoutes = require('./routes/upload');
 const usersRoutes = require('./routes/users');
 
@@ -39,7 +40,8 @@ app.use('/assets', express.static(path.join(__dirname, '..', 'public', 'assets')
 app.use('/api/auth', authRoutes);
 app.use('/api/announcements', announcementsRoutes);
 app.use('/api/events', eventsRoutes);
-app.use('/api/posters', postersRoutes);
+app.use('/api/services', servicesRoutes);
+app.use('/api/theme', themeRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/users', usersRoutes);
 
