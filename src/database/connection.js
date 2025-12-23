@@ -11,9 +11,9 @@ const pool = new Pool({
   password: dbPassword,
   database: process.env.DB_NAME || 'church_website',
 
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  // ssl: {
+  //   rejectUnauthorized: false,
+  // },
 
   max: 10,
   idleTimeoutMillis: 30000,

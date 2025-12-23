@@ -7,26 +7,27 @@ const { authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Temporary storage for category during upload
-let uploadCategory = 'posters';
-
-// Configure multer storage
+// Configure multer storage with dynamic destination
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // Use the category stored from the request or default to 'posters'
-    const category = uploadCategory || 'posters';
+    // Get category from request body (multer parses fields before files)
+    const category = req.body.category;
 
     console.log('📁 [UPLOAD] Multer destination - Using category:', category);
 
-    // Map category to directory name
+    // Map category to directory name - only allow categories that support images
     const categoryMap = {
-      'posters': 'posters',
       'services': 'services',
       'events': 'events',
-      'theme': 'theme',
-      'announcements': 'announcements'
+      'theme': 'theme'
     };
-    const dirName = categoryMap[category] || category;
+
+    if (!category || !categoryMap[category]) {
+      console.error('❌ [UPLOAD] Invalid category:', category);
+      return cb(new Error('Invalid category. Must be one of: services, events, theme'));
+    }
+
+    const dirName = categoryMap[category];
     const uploadDir = path.join(__dirname, '..', '..', 'public', 'uploads', dirName);
 
     console.log('📁 [UPLOAD] Multer destination - Directory name:', dirName);
@@ -53,7 +54,7 @@ const storage = multer.diskStorage({
 // File filter - only allow images
 const fileFilter = (req, file, cb) => {
   const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-  
+
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
@@ -61,7 +62,7 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-// Configure multer
+// Configure multer - it will automatically parse fields before files
 const upload = multer({
   storage,
   fileFilter,
@@ -70,80 +71,67 @@ const upload = multer({
   }
 });
 
-// Middleware to extract category from FormData before multer processes
-router.post('/', authMiddleware, (req, res, next) => {
+// Upload endpoint - multer handles both fields and file
+router.post('/', authMiddleware, upload.single('file'), (req, res) => {
   console.log('📥 [UPLOAD API] Received upload request');
 
-  // Parse FormData to extract category field
-  const busboy = require('busboy');
-  const bb = busboy({ headers: req.headers });
+  if (!req.file) {
+    console.error('❌ [UPLOAD API] Rejection reason: No file in request');
+    return res.status(400).json({ error: 'No file was uploaded' });
+  }
 
-  bb.on('field', (name, val) => {
-    if (name === 'category') {
-      console.log('📥 [UPLOAD API] Category field detected:', val);
-      uploadCategory = val || 'posters';
+  const category = req.body.category;
+  console.log('📥 [UPLOAD API] Final category after upload:', category);
+  console.log('📥 [UPLOAD API] req.body:', req.body);
+
+  // Map category to directory name - must match the validation in multer destination
+  const categoryMap = {
+    'services': 'services',
+    'events': 'events',
+    'theme': 'theme'
+  };
+
+  // This should never happen as multer would have rejected it, but double-check
+  if (!categoryMap[category]) {
+    console.error('❌ [UPLOAD API] Invalid category in response:', category);
+    return res.status(400).json({ error: 'Invalid upload category' });
+  }
+
+  const dirName = categoryMap[category];
+  const url = `/uploads/${dirName}/${req.file.filename}`;
+
+  console.log('✅ [UPLOAD API] Upload successful!', {
+    filename: req.file.filename,
+    size: `${(req.file.size / 1024).toFixed(2)} KB`,
+    mimetype: req.file.mimetype,
+    category: category,
+    dirName: dirName,
+    url: url,
+    actualPath: req.file.path
+  });
+
+  res.json({
+    success: true,
+    url,
+    filename: req.file.filename
+  });
+});
+
+// Error handling middleware for multer errors
+router.use((err, req, res, next) => {
+  console.error('❌ [UPLOAD API] Upload error:', err.message);
+
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      console.error('❌ [UPLOAD API] Rejection reason: File too large');
+      return res.status(400).json({ error: 'File is too large. Maximum size is 5MB.' });
     }
-  });
+    console.error('❌ [UPLOAD API] Rejection reason: Multer error -', err.code);
+    return res.status(400).json({ error: 'Upload failed. Please try again.' });
+  }
 
-  bb.on('finish', () => {
-    console.log('📥 [UPLOAD API] FormData parsing complete, category set to:', uploadCategory);
-    // Continue with multer upload
-    upload.single('file')(req, res, (err) => {
-      if (err) {
-        console.error('❌ [UPLOAD API] Upload error:', err.message);
-
-        if (err instanceof multer.MulterError) {
-          if (err.code === 'LIMIT_FILE_SIZE') {
-            console.error('❌ [UPLOAD API] Rejection reason: File too large');
-            return res.status(400).json({ error: 'File is too large. Maximum size is 5MB.' });
-          }
-          console.error('❌ [UPLOAD API] Rejection reason: Multer error -', err.code);
-          return res.status(400).json({ error: 'Upload failed. Please try again.' });
-        }
-
-        console.error('❌ [UPLOAD API] Rejection reason:', err.message);
-        return res.status(400).json({ error: err.message || 'Upload failed. Please try again.' });
-      }
-
-      if (!req.file) {
-        console.error('❌ [UPLOAD API] Rejection reason: No file in request');
-        return res.status(400).json({ error: 'No file was uploaded' });
-      }
-
-      const category = req.body.category || uploadCategory || 'posters';
-      console.log('📥 [UPLOAD API] Final category after upload:', category);
-      console.log('📥 [UPLOAD API] req.body:', req.body);
-
-      // Map category to directory name
-      const categoryMap = {
-        'posters': 'posters',
-        'services': 'services',
-        'events': 'events',
-        'theme': 'theme',
-        'announcements': 'announcements'
-      };
-      const dirName = categoryMap[category] || category;
-      const url = `/uploads/${dirName}/${req.file.filename}`;
-
-      console.log('✅ [UPLOAD API] Upload successful!', {
-        filename: req.file.filename,
-        size: `${(req.file.size / 1024).toFixed(2)} KB`,
-        mimetype: req.file.mimetype,
-        category: category,
-        dirName: dirName,
-        url: url,
-        actualPath: req.file.path
-      });
-
-      res.json({
-        success: true,
-        url,
-        filename: req.file.filename
-      });
-    });
-  });
-
-  req.pipe(bb);
+  console.error('❌ [UPLOAD API] Rejection reason:', err.message);
+  return res.status(400).json({ error: err.message || 'Upload failed. Please try again.' });
 });
 
 module.exports = router;

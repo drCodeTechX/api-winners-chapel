@@ -434,7 +434,7 @@ Authorization: Bearer <token>
 
 **File Validation:**
 - Allowed types: image/jpeg, image/jpg, image/png, image/webp
-- Max size: 5MB
+- Max size: 10MB
 - Files are stored in `public/uploads/{category}/`
 
 **Response:**
