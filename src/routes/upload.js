@@ -11,19 +11,23 @@ const router = express.Router();
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     // Get category from request body (multer parses fields before files)
-    const category = req.body.category || 'posters';
+    const category = req.body.category;
 
     console.log('📁 [UPLOAD] Multer destination - Using category:', category);
 
-    // Map category to directory name
+    // Map category to directory name - only allow categories that support images
     const categoryMap = {
-      'posters': 'posters',
       'services': 'services',
       'events': 'events',
-      'theme': 'theme',
-      'announcements': 'announcements'
+      'theme': 'theme'
     };
-    const dirName = categoryMap[category] || category;
+
+    if (!category || !categoryMap[category]) {
+      console.error('❌ [UPLOAD] Invalid category:', category);
+      return cb(new Error('Invalid category. Must be one of: services, events, theme'));
+    }
+
+    const dirName = categoryMap[category];
     const uploadDir = path.join(__dirname, '..', '..', 'public', 'uploads', dirName);
 
     console.log('📁 [UPLOAD] Multer destination - Directory name:', dirName);
@@ -76,19 +80,24 @@ router.post('/', authMiddleware, upload.single('file'), (req, res) => {
     return res.status(400).json({ error: 'No file was uploaded' });
   }
 
-  const category = req.body.category || 'posters';
+  const category = req.body.category;
   console.log('📥 [UPLOAD API] Final category after upload:', category);
   console.log('📥 [UPLOAD API] req.body:', req.body);
 
-  // Map category to directory name
+  // Map category to directory name - must match the validation in multer destination
   const categoryMap = {
-    'posters': 'posters',
     'services': 'services',
     'events': 'events',
-    'theme': 'theme',
-    'announcements': 'announcements'
+    'theme': 'theme'
   };
-  const dirName = categoryMap[category] || category;
+
+  // This should never happen as multer would have rejected it, but double-check
+  if (!categoryMap[category]) {
+    console.error('❌ [UPLOAD API] Invalid category in response:', category);
+    return res.status(400).json({ error: 'Invalid upload category' });
+  }
+
+  const dirName = categoryMap[category];
   const url = `/uploads/${dirName}/${req.file.filename}`;
 
   console.log('✅ [UPLOAD API] Upload successful!', {
